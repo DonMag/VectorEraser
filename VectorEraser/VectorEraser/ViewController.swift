@@ -72,15 +72,37 @@ class DrawingView: UIView {
 			// create bezier path from LineDef points
 			let drawPts = def.points
 			let bez = UIBezierPath()
-			for pt in drawPts {
-				if pt == drawPts.first {
-					bez.move(to: pt)
+			
+//			for pt in drawPts {
+//				if pt == drawPts.first {
+//					bez.move(to: pt)
+//				} else {
+//					bez.addLine(to: pt)
+//				}
+//			}
+//			// set path
+//			newLayer.path = bez.cgPath
+			
+			var midPoint: CGPoint = CGPoint.zero
+			
+			for (index, point) in drawPts.enumerated() {
+				if index == 0 {
+					midPoint = CGPoint(
+						x: (point.x + point.x) / 2,
+						y: (point.y + point.y) / 2
+					)
+					bez.move(to: midPoint)
 				} else {
-					bez.addLine(to: pt)
+					midPoint = CGPoint(
+						x: (point.x + drawPts[index - 1].x) / 2,
+						y: (point.y + drawPts[index - 1].y) / 2
+					)
+					bez.addQuadCurve(to: midPoint, controlPoint: drawPts[index - 1])
 				}
 			}
 			// set path
 			newLayer.path = bez.cgPath
+
 			
 			// add layer
 			layer.addSublayer(newLayer)
@@ -109,16 +131,38 @@ class DrawingView: UIView {
 			// create bezier path from LineDef points
 			let drawPts = def.points
 			let bez = UIBezierPath()
-			for pt in drawPts {
-				if pt == drawPts.first {
-					bez.move(to: pt)
+			
+//			for pt in drawPts {
+//				if pt == drawPts.first {
+//					bez.move(to: pt)
+//				} else {
+//					bez.addLine(to: pt)
+//				}
+//			}
+//			// set maskLayer's path
+//			maskLayer.path = bez.cgPath
+			
+			var midPoint: CGPoint = CGPoint.zero
+			
+			for (index, point) in drawPts.enumerated() {
+				if index == 0 {
+					midPoint = CGPoint(
+						x: (point.x + point.x) / 2,
+						y: (point.y + point.y) / 2
+					)
+					bez.move(to: midPoint)
 				} else {
-					bez.addLine(to: pt)
+					midPoint = CGPoint(
+						x: (point.x + drawPts[index - 1].x) / 2,
+						y: (point.y + drawPts[index - 1].y) / 2
+					)
+					bez.addQuadCurve(to: midPoint, controlPoint: drawPts[index - 1])
 				}
 			}
-			// set maskLayer's path
+			// set path
 			maskLayer.path = bez.cgPath
 			
+
 			// add layer
 			layer.addSublayer(newLayer)
 			
@@ -141,7 +185,13 @@ class DrawingView: UIView {
 }
 
 
-class DrawViewController: UIViewController {
+class DrawViewController: UIViewController, UIScrollViewDelegate {
+	
+	let theScrollView: UIScrollView = {
+		let v = UIScrollView()
+		v.translatesAutoresizingMaskIntoConstraints = false
+		return v
+	}()
 	
 	let theDrawingView: DrawingView = {
 		let v = DrawingView()
@@ -182,6 +232,9 @@ class DrawViewController: UIViewController {
 			CGPoint(x: 80, y: 80),
 			CGPoint(x: 240, y: 140),
 			CGPoint(x: 100, y: 200),
+			CGPoint(x: 130, y: 220),
+			CGPoint(x: 260, y: 160),
+			CGPoint(x: 200, y: 280),
 		]
 		return d
 	}()
@@ -230,15 +283,27 @@ class DrawViewController: UIViewController {
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		
+		view.addSubview(theScrollView)
+		
+		// constrain it 300 x 300 centered X and Y
+		NSLayoutConstraint.activate([
+			theScrollView.widthAnchor.constraint(equalToConstant: 300),
+			theScrollView.heightAnchor.constraint(equalToConstant: 300),
+			theScrollView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+			theScrollView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+			])
+		
 		// add the drawing view
-		view.addSubview(theDrawingView)
+		theScrollView.addSubview(theDrawingView)
 		
 		// constrain it 300 x 300 centered X and Y
 		NSLayoutConstraint.activate([
 			theDrawingView.widthAnchor.constraint(equalToConstant: 300),
 			theDrawingView.heightAnchor.constraint(equalToConstant: 300),
-			theDrawingView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-			theDrawingView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+			theDrawingView.topAnchor.constraint(equalTo: theScrollView.topAnchor, constant: 0.0),
+			theDrawingView.bottomAnchor.constraint(equalTo: theScrollView.bottomAnchor, constant: 0.0),
+			theDrawingView.leadingAnchor.constraint(equalTo: theScrollView.leadingAnchor, constant: 0.0),
+			theDrawingView.trailingAnchor.constraint(equalTo: theScrollView.trailingAnchor, constant: 0.0),
 			])
 		
 		let imgName = "TheCat"
@@ -258,6 +323,13 @@ class DrawViewController: UIViewController {
 		
 		// add the touchUpInside target
 		demoButton.addTarget(self, action: #selector(doTest), for: .touchUpInside)
+		
+		theScrollView.delegate = self
+		theScrollView.maximumZoomScale = 5.0
+	}
+	
+	func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+		return theDrawingView
 	}
 	
 	@objc func doTest(_ sender: Any?) -> Void {
