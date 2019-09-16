@@ -20,6 +20,61 @@ class LineDef: NSObject {
 	var points: [CGPoint] = [CGPoint]()
 }
 
+class BulletLayer : CAShapeLayer {
+	
+	func updateBullets(coordinates: CGSize, bulletColor: UIColor) -> Void {
+		let bullet = self
+		let bulletPath = UIBezierPath()
+		
+		bullet.contentsScale = UIScreen.main.scale
+		
+		var bullets: [CGPoint] = []
+		let width = coordinates.width
+		let height = coordinates.height
+		
+		let widthBullets = CGFloat(width / 55)
+		let heightBullets = CGFloat(height / 39)
+		
+		var hb: CGFloat?
+		var wb: CGFloat?
+		
+		for n in 1...39 {
+			hb = heightBullets * CGFloat(n)
+			for o in 1...55 {
+				wb = widthBullets * CGFloat(o)
+				bullets.append(CGPoint(x: wb!, y: hb!))
+			}
+		}
+		
+		bullets.forEach { point in
+			bulletPath.move(to: point)
+			bulletPath.addLine(to: point)
+		}
+		
+		bullet.path = bulletPath.cgPath
+		bullet.opacity = 1.0
+		bullet.lineWidth = 2.0
+		bullet.lineCap = .round
+		bullet.fillColor = UIColor.clear.cgColor
+		bullet.strokeColor = bulletColor.cgColor
+		
+		bullet.backgroundColor = UIColor.white.cgColor
+		
+	}
+}
+
+extension CALayer {
+	func image() -> UIImage {
+		UIGraphicsBeginImageContextWithOptions(bounds.size, false, UIScreen.main.scale)
+		
+		render(in: UIGraphicsGetCurrentContext()!)
+		let outputImage = UIGraphicsGetImageFromCurrentImageContext()!
+		
+		UIGraphicsEndImageContext()
+		return outputImage
+	}
+}
+
 class DrawingView: UIView {
 	
 	// the background image
@@ -28,6 +83,11 @@ class DrawingView: UIView {
 			updateBkgImage()
 		}
 	}
+	
+	let bulletsLayer: BulletLayer = {
+		let v = BulletLayer()
+		return v
+	}()
 	
 	func updateBkgImage() -> Void {
 		// if no layers have been added yet, add the background image layer
@@ -73,16 +133,6 @@ class DrawingView: UIView {
 			let drawPts = def.points
 			let bez = UIBezierPath()
 			
-//			for pt in drawPts {
-//				if pt == drawPts.first {
-//					bez.move(to: pt)
-//				} else {
-//					bez.addLine(to: pt)
-//				}
-//			}
-//			// set path
-//			newLayer.path = bez.cgPath
-			
 			var midPoint: CGPoint = CGPoint.zero
 			
 			for (index, point) in drawPts.enumerated() {
@@ -111,8 +161,17 @@ class DrawingView: UIView {
 			
 			// create new layer
 			let newLayer = CALayer()
+			
 			// set its contents to the background image
-			newLayer.contents = bkgImage.cgImage
+			if let bkgLayer = layer.sublayers?.first {
+				if bkgLayer.contents != nil {
+					newLayer.contents = bkgImage.cgImage
+				} else {
+					let bImg = bulletsLayer.image()
+					newLayer.contents = bImg.cgImage
+				}
+			}
+			
 			newLayer.opacity = def.opacity
 			
 			// create a shape layer to use as a mask
@@ -131,16 +190,6 @@ class DrawingView: UIView {
 			// create bezier path from LineDef points
 			let drawPts = def.points
 			let bez = UIBezierPath()
-			
-//			for pt in drawPts {
-//				if pt == drawPts.first {
-//					bez.move(to: pt)
-//				} else {
-//					bez.addLine(to: pt)
-//				}
-//			}
-//			// set maskLayer's path
-//			maskLayer.path = bez.cgPath
 			
 			var midPoint: CGPoint = CGPoint.zero
 			
@@ -174,12 +223,16 @@ class DrawingView: UIView {
 	override func layoutSubviews() {
 		super.layoutSubviews()
 		
+		if bulletsLayer.superlayer == nil {
+			layer.addSublayer(bulletsLayer)
+		}
 		// update layer frames
 		if let layers = layer.sublayers {
 			for l in layers {
 				l.frame = bounds
 			}
 		}
+		bulletsLayer.updateBullets(coordinates: bounds.size, bulletColor: UIColor.red)
 	}
 	
 }
@@ -305,11 +358,12 @@ class DrawViewController: UIViewController, UIScrollViewDelegate {
 			theDrawingView.leadingAnchor.constraint(equalTo: theScrollView.leadingAnchor, constant: 0.0),
 			theDrawingView.trailingAnchor.constraint(equalTo: theScrollView.trailingAnchor, constant: 0.0),
 			])
-		
-		let imgName = "TheCat"
-		if let img = UIImage(named: imgName) {
-			theDrawingView.bkgImage = img
-		}
+
+		// using a class-generated "Bullets" background instead of a UIImage
+//		let imgName = "TheCat"
+//		if let img = UIImage(named: imgName) {
+//			theDrawingView.bkgImage = img
+//		}
 		
 		// add a demo button
 		view.addSubview(demoButton)
